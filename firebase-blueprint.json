@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information for salon owners or staff.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["professional", "client"], "description": "User role in the system" },
+        "phone": { "type": "string" },
+        "profession": { "type": "string" },
+        "salonName": { "type": "string" },
+        "businessType": { "type": "string", "enum": ["barber", "beauty"], "description": "Layout theme and business sector" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Customer of the salon.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "A service offered by the salon (e.g., Haircut).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "price": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["ownerId", "name", "duration", "price"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A scheduled service for a client.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "scheduled", "completed", "cancelled"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "serviceId", "date", "startTime", "status"]
+    },
+    "Staff": {
+      "title": "Staff Member",
+      "description": "A professional working in the salon.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["ownerId", "name", "active"]
+    },
+    "Availability": {
+      "title": "Availability Rule",
+      "description": "Defines when a professional is available for booking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "daysOfWeek": { "type": "array", "items": { "type": "integer" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "startDate", "endDate", "startTime", "endTime", "daysOfWeek"]
+    },
+    "LoyaltyReward": {
+      "title": "Loyalty Reward",
+      "description": "Rewards that clients can redeem with points.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "pointsRequired": { "type": "number" },
+        "description": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["ownerId", "name", "pointsRequired"]
+    },
+    "LoyaltyBalance": {
+      "title": "Loyalty Balance",
+      "description": "The points balance of a client at a specific salon.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "balance": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "ownerId", "balance"]
+    },
+    "LoyaltyTransaction": {
+      "title": "Loyalty Transaction",
+      "description": "A record of points earned or redeemed.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "points": { "type": "number" },
+        "type": { "type": "string", "enum": ["earn", "redeem"] },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "ownerId", "points", "type"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Private user profiles"
+    },
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Clients managed by salon owners"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Services offered by the salon"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Staff members in the salon"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointments for clients"
+    },
+    "/availability/{availabilityId}": {
+      "schema": "Availability",
+      "description": "Availability rules for staff"
+    },
+    "/loyalty_rewards/{rewardId}": {
+      "schema": "LoyaltyReward",
+      "description": "Rewards offered by salons"
+    },
+    "/loyalty_balances/{balanceId}": {
+      "schema": "LoyaltyBalance",
+      "description": "Client point balances at specific salons"
+    },
+    "/loyalty_transactions/{transactionId}": {
+      "schema": "LoyaltyTransaction",
+      "description": "History of point earnings and redemptions"
+    }
+  }
+}

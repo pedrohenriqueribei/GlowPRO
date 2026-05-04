@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    match /users/{userId} {
+      allow get: if true;
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    match /services/{serviceId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+    }
+
+    match /staff/{staffId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+    }
+    
+    match /appointments/{appointmentId} {
+      allow list, get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+      allow create: if (isSignedIn() && (request.resource.data.ownerId == request.auth.uid || request.resource.data.clientId == request.auth.uid)) || 
+                    (!isSignedIn() && request.resource.data.status == 'pending');
+      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+    }
+    
+    match /clients/{clientId} {
+      allow read, write: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid || request.resource.data.ownerId == request.auth.uid);
+    }
+
+    match /availability/{availabilityId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || (resource != null && resource.data.ownerId == request.auth.uid));
+    }
+
+    match /loyalty_rewards/{rewardId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || (resource != null && resource.data.ownerId == request.auth.uid));
+    }
+
+    match /loyalty_balances/{balanceId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow create, update: if isSignedIn(); // Simplified for now, system logic should be more restrictive
+    }
+
+    match /loyalty_transactions/{transactionId} {
+      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow create: if isSignedIn();
+    }
+  }
+}

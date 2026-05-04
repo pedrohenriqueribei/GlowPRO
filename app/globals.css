@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+}
+
+:root {
+  --font-inter: var(--font-sans);
+  --font-space-grotesk: var(--font-display);
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Glass effect utilities */
+.glass {
+  @apply bg-zinc-900/50 backdrop-blur-md border border-zinc-800;
+}
+
+/* Typography refinements */
+h1, h2, h3, h4 {
+  @apply font-display tracking-tight;
+}
+
+.text-gradient {
+  @apply bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent;
+}
