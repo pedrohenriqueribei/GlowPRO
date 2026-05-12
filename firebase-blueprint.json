@@ -8,8 +8,10 @@
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
-        "role": { "type": "string", "enum": ["professional", "client"], "description": "User role in the system" },
+        "role": { "type": "string", "enum": ["admin", "professional", "staff", "client"], "description": "User role in the system" },
+        "salonId": { "type": "string", "description": "ID of the salon this staff belongs to" },
         "phone": { "type": "string" },
+        "address": { "type": "string" },
         "profession": { "type": "string" },
         "salonName": { "type": "string" },
         "businessType": { "type": "string", "enum": ["barber", "beauty"], "description": "Layout theme and business sector" },
@@ -75,6 +77,8 @@
       "properties": {
         "id": { "type": "string" },
         "ownerId": { "type": "string" },
+        "userId": { "type": "string", "description": "Linked user account ID" },
+        "email": { "type": "string", "format": "email" },
         "name": { "type": "string" },
         "role": { "type": "string" },
         "active": { "type": "boolean" }
@@ -165,6 +169,10 @@
     "/availability/{availabilityId}": {
       "schema": "Availability",
       "description": "Availability rules for staff"
+    },
+    "/admins/{adminId}": {
+      "schema": "object",
+      "description": "Master admins with global access"
     },
     "/loyalty_rewards/{rewardId}": {
       "schema": "LoyaltyReward",

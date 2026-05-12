@@ -12,14 +12,19 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
-  deleteDoc
+  deleteDoc,
+  orderBy
 } from 'firebase/firestore';
 import { Button, Card, Input } from '@/components/ui';
 import { Plus, Calendar as CalendarIcon, Clock, User, Scissors, Trash2, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getTheme } from '@/lib/theme';
 
 export default function AppointmentsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const theme = getTheme(profile?.businessType, profile?.role);
+  const isClient = profile?.role === 'client';
+
   const [appointments, setAppointments] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -37,27 +42,40 @@ export default function AppointmentsPage() {
   useEffect(() => {
     if (!user) return;
 
-    const qApts = query(collection(db, 'appointments'), where('ownerId', '==', user.uid));
+    const qApts = isClient 
+      ? query(collection(db, 'appointments'), where('clientId', '==', user.uid), orderBy('date', 'desc'))
+      : query(collection(db, 'appointments'), where('ownerId', '==', user.uid));
+    
     const unsubscribeApts = onSnapshot(qApts, (snapshot) => {
       setAppointments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('Error in appointments snapshot:', error);
     });
 
-    const qClients = query(collection(db, 'clients'), where('ownerId', '==', user.uid));
-    const unsubscribeClients = onSnapshot(qClients, (snapshot) => {
-      setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    if (!isClient) {
+      const qClients = query(collection(db, 'clients'), where('ownerId', '==', user.uid));
+      const unsubscribeClients = onSnapshot(qClients, (snapshot) => {
+        setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (error) => {
+        console.error('Error in clients snapshot:', error);
+      });
 
-    const qServices = query(collection(db, 'services'), where('ownerId', '==', user.uid));
-    const unsubscribeServices = onSnapshot(qServices, (snapshot) => {
-      setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+      const qServices = query(collection(db, 'services'), where('ownerId', '==', user.uid));
+      const unsubscribeServices = onSnapshot(qServices, (snapshot) => {
+        setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (error) => {
+        console.error('Error in services snapshot:', error);
+      });
 
-    return () => {
-      unsubscribeApts();
-      unsubscribeClients();
-      unsubscribeServices();
-    };
-  }, [user]);
+      return () => {
+        unsubscribeApts();
+        unsubscribeClients();
+        unsubscribeServices();
+      };
+    }
+
+    return () => unsubscribeApts();
+  }, [user, isClient]);
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,13 +134,22 @@ export default function AppointmentsPage() {
     <div className="max-w-7xl mx-auto space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-zinc-100">Agenda</h1>
-          <p className="text-zinc-500">Controle de horários e atendimento.</p>
+          <div className={`w-fit px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-[0.2em] mb-2 ${theme.roleBadge}`}>
+            {isClient ? '✨ Meus Agendamentos' : '👑 Gestão de Agenda'}
+          </div>
+          <h1 className={`text-3xl font-display font-bold ${theme.text}`}>
+            {isClient ? 'Minha Agenda' : 'Agenda'}
+          </h1>
+          <p className={theme.muted}>
+            {isClient ? 'Acompanhe seus horários marcados em seus estabelecimentos favoritos.' : 'Controle de horários e atendimento.'}
+          </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="gap-2">
-          <Plus size={18} />
-          Agendar Horário
-        </Button>
+        {!isClient && (
+          <Button onClick={() => setIsModalOpen(true)} className={`gap-2 ${theme.btn}`}>
+            <Plus size={18} />
+            Agendar Horário
+          </Button>
+        )}
       </header>
 
       {pendingAppointments.length > 0 && (

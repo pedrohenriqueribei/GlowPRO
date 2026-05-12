@@ -12,7 +12,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile 
 } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 import { Button, Input } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { Scissors, Calendar, Users, Star, ArrowRight, X, Mail, Lock, User, Phone, Briefcase, Sparkles, CheckCircle2 } from 'lucide-react';
@@ -31,7 +31,7 @@ export default function Home() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [profession, setProfession] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'professional' | 'client'>('professional');
+  const [selectedRole, setSelectedRole] = useState<'profissional' | 'cliente'>('profissional');
   const [error, setError] = useState('');
 
   const isBeauty = landingTheme === 'beauty';
@@ -62,15 +62,55 @@ export default function Home() {
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          photoURL: result.user.photoURL,
-          role: selectedRole,
-          salonName: '',
-          createdAt: serverTimestamp(),
-        });
+        const userEmail = result.user.email?.toLowerCase();
+        
+        // Check for existing linkage (from auth-context logic)
+        const staffQuery = query(collection(db, 'staff'), where('email', '==', userEmail));
+        const staffSnap = await getDocs(staffQuery);
+        
+        const profQuery = query(collection(db, 'users'), where('email', '==', userEmail));
+        const profSnap = await getDocs(profQuery);
+        let existingProf = profSnap.docs.find(d => (d.data().role === 'professional' || d.data().role === 'profissional') && d.id !== result.user.uid);
+
+        if (!staffSnap.empty) {
+          const staffDoc = staffSnap.docs[0];
+          const staffData = staffDoc.data();
+          await setDoc(userRef, {
+            uid: result.user.uid,
+            email: userEmail,
+            displayName: result.user.displayName || staffData.name,
+            role: 'profissional',
+            isOwner: false,
+            salonId: staffData.ownerId,
+            staffId: staffDoc.id,
+            photoURL: result.user.photoURL,
+            createdAt: serverTimestamp(),
+          });
+          await updateDoc(doc(db, 'staff', staffDoc.id), { userId: result.user.uid });
+        } else if (existingProf) {
+          const profData = existingProf.data();
+          await setDoc(userRef, {
+            ...profData,
+            uid: result.user.uid,
+            email: userEmail,
+            displayName: result.user.displayName || profData.name,
+            role: 'profissional',
+            isOwner: true,
+            photoURL: result.user.photoURL,
+            updatedAt: serverTimestamp(),
+          });
+          await deleteDoc(doc(db, 'users', existingProf.id));
+        } else {
+          await setDoc(userRef, {
+            uid: result.user.uid,
+            email: userEmail,
+            displayName: result.user.displayName,
+            photoURL: result.user.photoURL,
+            role: selectedRole,
+            businessType: landingTheme,
+            createdAt: serverTimestamp(),
+          });
+        }
       }
       router.push('/dashboard');
     } catch (e: any) {
@@ -86,25 +126,70 @@ export default function Home() {
     setError('');
 
     try {
+      const cleanEmail = email.toLowerCase().trim();
       if (authMode === 'register') {
-        const result = await createUserWithEmailAndPassword(auth, email, password);
+        const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         await updateProfile(result.user, { displayName: name });
         
-        await setDoc(doc(db, 'users', result.user.uid), {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: name,
-          role: selectedRole,
-          phone,
-          ...(selectedRole === 'professional' ? {
-            profession,
-            salonName: '',
-            businessType: profession.toLowerCase().includes('barbe') ? 'barber' : 'beauty',
-          } : {}),
-          createdAt: serverTimestamp(),
-        });
+        // Link checking
+        const staffQuery = query(collection(db, 'staff'), where('email', '==', cleanEmail));
+        const staffSnap = await getDocs(staffQuery);
+        
+        const profQuery = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const profSnap = await getDocs(profQuery);
+        let existingProf = profSnap.docs.find(d => (d.data().role === 'professional' || d.data().role === 'profissional') && d.id !== result.user.uid);
+
+        if (!staffSnap.empty) {
+          const staffDoc = staffSnap.docs[0];
+          const staffData = staffDoc.data();
+          await setDoc(doc(db, 'users', result.user.uid), {
+            uid: result.user.uid,
+            email: cleanEmail,
+            displayName: name || staffData.name,
+            role: 'profissional',
+            isOwner: false,
+            salonId: staffData.ownerId,
+            staffId: staffDoc.id,
+            phone: phone || staffData.phone || '',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          await updateDoc(doc(db, 'staff', staffDoc.id), { userId: result.user.uid });
+        } else if (existingProf) {
+          const profData = existingProf.data();
+          await setDoc(doc(db, 'users', result.user.uid), {
+            ...profData,
+            uid: result.user.uid,
+            email: cleanEmail,
+            displayName: name || profData.name,
+            role: 'profissional',
+            isOwner: true,
+            phone: phone || profData.phone || '',
+            createdAt: profData.createdAt || serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          await deleteDoc(doc(db, 'users', existingProf.id));
+        } else {
+          // Default registration
+          await setDoc(doc(db, 'users', result.user.uid), {
+            uid: result.user.uid,
+            email: cleanEmail,
+            displayName: name,
+            role: selectedRole,
+            phone,
+            businessType: landingTheme, // Added default businessType for everyone
+            ...(selectedRole === 'profissional' ? {
+              profession,
+              salonName: '',
+              isOwner: false, // By default via landing page, they aren't owner unless linked above
+              businessType: profession.toLowerCase().includes('barbe') ? 'barber' : 'beauty',
+            } : {}),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        }
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, cleanEmail, password);
       }
       router.push('/dashboard');
     } catch (e: any) {
@@ -292,25 +377,25 @@ export default function Home() {
 
               <div className="mb-8">
                 <h2 className={`text-3xl font-bold ${theme.font} ${theme.text}`}>
-                  {authMode === 'login' ? 'Bem-vindo de volta' : (selectedRole === 'professional' ? 'Inicie seu Negócio' : 'Crie sua Conta')}
+                  {authMode === 'login' ? 'Bem-vindo de volta' : (selectedRole === 'profissional' ? 'Inicie seu Negócio' : 'Crie sua Conta')}
                 </h2>
                 <p className={`${theme.muted} text-sm mt-2`}>
-                  {authMode === 'login' ? 'Acesse seu painel administrativo.' : (selectedRole === 'professional' ? 'Crie sua conta profissional agora.' : 'Agende seus serviços favoritos.')}
+                  {authMode === 'login' ? 'Acesse seu painel administrativo.' : (selectedRole === 'profissional' ? 'Crie sua conta profissional agora.' : 'Agende seus serviços favoritos.')}
                 </p>
               </div>
 
               {authMode === 'register' && (
                 <div className="flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-950 mb-8 gap-1">
                   <button
-                    onClick={() => setSelectedRole('professional')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all ${selectedRole === 'professional' ? (isBeauty ? 'bg-pink-600 text-white' : 'bg-white text-zinc-950 shadow-sm') : (isBeauty ? 'text-zinc-500 hover:text-pink-600' : 'text-zinc-500 hover:text-zinc-300')}`}
+                    onClick={() => setSelectedRole('profissional')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all ${selectedRole === 'profissional' ? (isBeauty ? 'bg-pink-600 text-white' : 'bg-white text-zinc-950 shadow-sm') : (isBeauty ? 'text-zinc-500 hover:text-pink-600' : 'text-zinc-500 hover:text-zinc-300')}`}
                   >
                     <Scissors size={14} />
                     Profissional
                   </button>
                   <button
-                    onClick={() => setSelectedRole('client')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all ${selectedRole === 'client' ? (isBeauty ? 'bg-pink-600 text-white' : 'bg-white text-zinc-950 shadow-sm') : (isBeauty ? 'text-zinc-500 hover:text-pink-600' : 'text-zinc-500 hover:text-zinc-300')}`}
+                    onClick={() => setSelectedRole('cliente')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all ${selectedRole === 'cliente' ? (isBeauty ? 'bg-pink-600 text-white' : 'bg-white text-zinc-950 shadow-sm') : (isBeauty ? 'text-zinc-500 hover:text-pink-600' : 'text-zinc-500 hover:text-zinc-300')}`}
                   >
                     <Users size={14} />
                     Cliente
@@ -355,7 +440,7 @@ export default function Home() {
                         />
                       </div>
                     </div>
-                    {selectedRole === 'professional' && (
+                    {selectedRole === 'profissional' && (
                       <div className="space-y-2">
                         <label className={`text-[10px] uppercase font-bold px-1 ${theme.muted}`}>Profissão</label>
                         <div className="relative">
@@ -374,7 +459,7 @@ export default function Home() {
                   </>
                 )}
                 <div className="space-y-2">
-                  <label className={`text-[10px] uppercase font-bold px-1 ${theme.muted}`}>{selectedRole === 'professional' ? 'E-mail Profissional' : 'Seu E-mail'}</label>
+                  <label className={`text-[10px] uppercase font-bold px-1 ${theme.muted}`}>{selectedRole === 'profissional' ? 'E-mail Profissional' : 'Seu E-mail'}</label>
                   <div className="relative">
                     <Mail size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 ${theme.muted}`} />
                     <Input

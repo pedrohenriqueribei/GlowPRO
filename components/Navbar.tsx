@@ -32,7 +32,9 @@ export function Navbar() {
           <div className={`flex items-center gap-4 border-l ${theme.border} pl-6`}>
             <div className="text-right hidden sm:block">
               <p className={`text-sm font-bold uppercase tracking-widest ${theme.text}`}>{user?.displayName?.split(' ')[0]}</p>
-              <p className={`text-[10px] uppercase font-bold opacity-30`}>{profile?.role === 'professional' ? 'Master' : 'Membro'}</p>
+              <p className={`text-[10px] uppercase font-bold opacity-30`}>
+                {profile?.role === 'profissional' || profile?.role === 'professional' ? 'Profissional' : 'Cliente'}
+              </p>
             </div>
             {user?.photoURL ? (
               <img src={user.photoURL} alt="Avatar" className={`h-10 w-10 rounded-full border-2 ${theme.isBeauty ? 'border-pink-500' : 'border-amber-500'}`} />

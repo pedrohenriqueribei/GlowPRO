@@ -63,12 +63,16 @@ export default function LoyaltyPage() {
       const rewardsQ = query(collection(db, 'loyalty_rewards'), where('ownerId', '==', user.uid));
       const unsubRewards = onSnapshot(rewardsQ, (snap) => {
         setRewards(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        console.error('Error in rewards snapshot:', error);
       });
 
       // Balances
       const balancesQ = query(collection(db, 'loyalty_balances'), where('ownerId', '==', user.uid), orderBy('balance', 'desc'));
       const unsubBalances = onSnapshot(balancesQ, (snap) => {
         setBalances(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        console.error('Error in balances snapshot:', error);
       });
 
       // Transactions
@@ -79,6 +83,8 @@ export default function LoyaltyPage() {
       );
       const unsubTrans = onSnapshot(transQ, (snap) => {
         setHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        console.error('Error in transactions snapshot:', error);
       });
 
       return () => {
@@ -100,6 +106,8 @@ export default function LoyaltyPage() {
           const rewardsSnap = await getDocs(rewardsQ);
           setRewards(rewardsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         }
+      }, (error) => {
+        console.error('Error in client balances snapshot:', error);
       });
       return () => unsubClientBalances();
     }

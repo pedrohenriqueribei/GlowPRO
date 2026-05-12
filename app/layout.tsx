@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Space_Grotesk, Playfair_Display, Cormorant_Garamond } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/auth-context';
+import AdminBootstrap from '@/components/AdminBootstrap';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={`${inter.variable} ${spaceGrotesk.variable} ${playfair.variable} ${cormorant.variable}`}>
       <body suppressHydrationWarning className="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
         <AuthProvider>
+          <AdminBootstrap />
           {children}
         </AuthProvider>
       </body>

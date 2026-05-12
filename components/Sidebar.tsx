@@ -11,7 +11,9 @@ import {
   Clock,
   Star,
   Settings,
-  Plus
+  Plus,
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getTheme } from '@/lib/theme';
@@ -23,22 +25,52 @@ const links = [
   { href: '/dashboard/availability', label: 'Disponibilidade', icon: Clock },
   { href: '/dashboard/loyalty', label: 'Fidelidade', icon: Star },
   { href: '/dashboard/clients', label: 'Clientes', icon: Users },
+  { href: '/dashboard/staff', label: 'Profissionais', icon: Users },
   { href: '/dashboard/services', label: 'Serviços', icon: Scissors },
   { href: '/dashboard/settings', label: 'Configurações', icon: Settings },
+  { href: '/dashboard/admin', label: 'Admin', icon: ShieldCheck },
 ];
+
+import { useRouter } from 'next/navigation';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { profile } = useAuth();
-  const theme = getTheme(profile?.businessType);
-  const isClient = profile?.role === 'client';
+  const router = useRouter();
+  const { profile, isAdmin } = useAuth();
+  const theme = getTheme(profile?.businessType, isAdmin ? 'admin' : profile?.role);
+  const isClient = profile?.role === 'cliente' || profile?.role === 'client';
+  const isOwner = profile?.isOwner;
 
-  const filteredLinks = links.filter(link => {
+  const filteredLinks = links.map(link => {
     if (isClient) {
-      return ['Dashboard', 'Agenda', 'Configurações'].includes(link.label);
+      if (link.label === 'Agenda') return { ...link, label: 'Minha Agenda' };
+      if (link.label === 'Fidelidade') return { ...link, label: 'Meus Pontos' };
     }
-    return true;
+    return link;
+  }).filter(link => {
+    if (isAdmin) {
+      return ['Dashboard', 'Configurações'].includes(link.label);
+    }
+    if (isClient) {
+      return ['Dashboard', 'Minha Agenda', 'Meus Pontos', 'Configurações'].includes(link.label);
+    }
+    // Only Owners can manage the team (Staff)
+    if (link.label === 'Profissionais' && !isOwner) return false;
+
+    // Professionals (Non-owners) might not see business-level settings if desired,
+    // but for now we let them see core operational links.
+    return link.label !== 'Admin';
   });
+
+  const handleNewAction = () => {
+    if (isAdmin) {
+      router.push('/dashboard?new=true');
+    } else if (isClient) {
+       router.push('/dashboard'); // Go to home to search/book
+    } else {
+       router.push('/dashboard/appointments'); // Professional goes to agenda
+    }
+  };
 
   return (
     <aside className={cn(
@@ -76,9 +108,12 @@ export function Sidebar() {
       </div>
 
       <div className={cn("pt-6 border-t", theme.border)}>
-        <Button className={cn("w-full py-6 gap-3 rounded-2xl shadow-xl font-bold uppercase tracking-widest text-xs", theme.accentBg)}>
-          {isClient ? <Calendar size={18} /> : <Plus size={18} />}
-          {isClient ? 'Agendar' : 'Novo'}
+        <Button 
+          onClick={handleNewAction}
+          className={cn("w-full py-6 gap-3 rounded-2xl shadow-xl font-bold uppercase tracking-widest text-xs", theme.accentBg)}
+        >
+          {isAdmin ? <Building2 size={18} /> : isClient ? <Calendar size={18} /> : <Plus size={18} />}
+          {isAdmin ? 'Novo Estabelecimento' : isClient ? 'Agendar' : 'Novo'}
         </Button>
       </div>
     </aside>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
+import { MobileNav } from '@/components/MobileNav';
 import { getTheme } from '@/lib/theme';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -31,10 +32,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Navbar />
       <div className="flex">
         <Sidebar />
-        <main className="flex-1 md:ml-64 p-6 min-h-[calc(100vh-64px)]">
+        <main className="flex-1 md:ml-64 p-4 md:p-8 min-h-[calc(100vh-64px)] pb-32 md:pb-8">
           {children}
         </main>
       </div>
+      <MobileNav />
     </div>
   );
 }

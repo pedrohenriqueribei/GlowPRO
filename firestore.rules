@@ -2,31 +2,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'pedrohenriqueribei@gmail.com'
+      ); 
+    }
     
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
     
     match /users/{userId} {
       allow get: if true;
-      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isAdmin() || (isSignedIn() && (
+        resource.data.role in ['professional', 'profissional'] ||
+        resource.data.email == request.auth.token.email
+      ));
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow list, write: if isAdmin();
     }
     
     match /services/{serviceId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow create, update, delete: if isAdmin() || (isSignedIn() && (request.resource.data.ownerId == request.auth.uid || (resource != null && resource.data.ownerId == request.auth.uid)));
     }
 
     match /staff/{staffId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
+      allow update: if isAdmin() || (isSignedIn() && (
+        request.resource.data.ownerId == request.auth.uid || 
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.email == request.auth.token.email
+      ));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
     }
     
     match /appointments/{appointmentId} {
-      allow list, get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+      allow list, get: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid || 
+        resource.data.staffId != null // Staff read handled by client-side queries for now, or tighten if needed
+      );
       allow create: if (isSignedIn() && (request.resource.data.ownerId == request.auth.uid || request.resource.data.clientId == request.auth.uid)) || 
                     (!isSignedIn() && request.resource.data.status == 'pending');
-      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+      allow update: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid ||
+        // Allow staff to update status
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+      );
+      allow delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.clientId == request.auth.uid);
     }
     
     match /clients/{clientId} {

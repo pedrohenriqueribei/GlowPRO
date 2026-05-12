@@ -36,6 +36,8 @@ export default function ServicesPage() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('Error in services snapshot:', error);
     });
 
     return () => unsubscribe();

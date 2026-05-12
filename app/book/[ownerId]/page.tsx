@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   auth, 
   db, 
@@ -34,12 +35,16 @@ import {
   ChevronRight,
   Mail,
   Lock,
-  Phone
+  Phone,
+  UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function PublicBookingPage({ params }: { params: Promise<{ ownerId: string }> }) {
   const { ownerId } = use(params);
+  const searchParams = useSearchParams();
+  const preSelectedStaffId = searchParams.get('staffId');
+  
   const { user: currentUser, profile } = useAuth();
   const [salon, setSalon] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
@@ -84,13 +89,28 @@ export default function PublicBookingPage({ params }: { params: Promise<{ ownerI
       try {
         const salonSnap = await getDoc(doc(db, 'users', ownerId));
         if (salonSnap.exists()) {
-          setSalon(salonSnap.data());
+          const salonData = salonSnap.data();
+          setSalon(salonData);
           
           const servicesSnap = await getDocs(query(collection(db, 'services'), where('ownerId', '==', ownerId)));
-          setServices(servicesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          const servicesList = servicesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setServices(servicesList);
 
           const staffSnap = await getDocs(query(collection(db, 'staff'), where('ownerId', '==', ownerId), where('active', '==', true)));
-          setStaff(staffSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          const staffList = staffSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+          setStaff(staffList);
+
+          // Handle pre-selected staff member
+          if (preSelectedStaffId) {
+            const found = staffList.find(s => s.id === preSelectedStaffId);
+            if (found) {
+              setBookingData(prev => ({
+                ...prev,
+                staffId: found.id,
+                staffName: found.name
+              }));
+            }
+          }
 
           const availabilitySnap = await getDocs(query(collection(db, 'availability'), where('ownerId', '==', ownerId)));
           setAvailability(availabilitySnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -102,7 +122,7 @@ export default function PublicBookingPage({ params }: { params: Promise<{ ownerI
       }
     };
     fetchData();
-  }, [ownerId]);
+  }, [ownerId, preSelectedStaffId]);
 
   useEffect(() => {
     if (!bookingData.date || !ownerId) return;
@@ -289,40 +309,43 @@ export default function PublicBookingPage({ params }: { params: Promise<{ ownerI
             {salon.salonName?.[0] || 'G'}
           </div>
           <div>
-            <h1 className={`text-4xl md:text-5xl tracking-tighter ${theme.fontDisplay}`}>{salon.salonName || 'Nosso Salão'}</h1>
-            <div className="flex items-center justify-center gap-3 mt-3">
-               <div className={`h-px w-8 ${isBeauty ? 'bg-pink-200' : 'bg-zinc-800'}`} />
-               <p className={`${theme.muted} text-[10px] uppercase font-bold tracking-[0.3em]`}>Professional Booking</p>
-               <div className={`h-px w-8 ${isBeauty ? 'bg-pink-200' : 'bg-zinc-800'}`} />
-            </div>
+          <h1 className={`text-4xl md:text-5xl tracking-tighter ${theme.fontDisplay}`}>{salon.businessName || salon.salonName || 'Nosso Estabelecimento'}</h1>
+          <div className="flex items-center justify-center gap-3 mt-3">
+             <div className={`h-px w-8 ${isBeauty ? 'bg-pink-200' : 'bg-zinc-800'}`} />
+             <p className={`${theme.muted} text-[10px] uppercase font-bold tracking-[0.3em]`}>Portal de Agendamento</p>
+             <div className={`h-px w-8 ${isBeauty ? 'bg-pink-200' : 'bg-zinc-800'}`} />
           </div>
-        </header>
-
-        <div className={`flex gap-2 h-1.5 ${isBeauty ? 'bg-pink-100' : 'bg-zinc-900'} rounded-full overflow-hidden`}>
-          {[1, 2, 3, 4, 5].map(s => (
-            <div key={s} className={`flex-1 transition-all duration-700 ease-out rounded-full ${step >= s ? theme.progress : 'bg-transparent'}`} />
-          ))}
         </div>
+      </header>
 
-        <div className="relative overflow-hidden min-h-[450px]">
-          <AnimatePresence mode="wait">
-            {/* Step 1, 2, 3 remains same... */}
-            {step === 1 && (
-              <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-6">
-                <div className="space-y-1">
-                  <h2 className={`text-xl ${theme.fontDisplay} flex items-center gap-2`}>
-                    <Scissors size={20} className={isBeauty ? 'text-pink-500' : 'text-zinc-500'} />
-                    O que vamos fazer hoje?
-                  </h2>
-                  <p className="text-xs text-zinc-500">Selecione um ou mais serviços do nosso menu.</p>
-                </div>
+      <div className={`flex gap-2 h-1.5 ${isBeauty ? 'bg-pink-100' : 'bg-zinc-900'} rounded-full overflow-hidden`}>
+        {[1, 2, 3, 4, 5].map(s => (
+          <div key={s} className={`flex-1 transition-all duration-700 ease-out rounded-full ${step >= s ? theme.progress : 'bg-transparent'}`} />
+        ))}
+      </div>
+
+      <div className="relative overflow-hidden min-h-[450px]">
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-6">
+              <div className="space-y-1">
+                <h2 className={`text-xl ${theme.fontDisplay} flex items-center gap-2`}>
+                  <Scissors size={20} className={isBeauty ? 'text-pink-500' : 'text-zinc-500'} />
+                  O que vamos fazer hoje?
+                </h2>
+                <p className="text-xs text-zinc-500">Selecione o serviço desejado.</p>
+              </div>
                 <div className="grid gap-3">
                   {services.map(s => (
                     <button
                       key={s.id}
                       onClick={() => {
                         setBookingData({ ...bookingData, serviceId: s.id, serviceName: s.name });
-                        setStep(2);
+                        if (bookingData.staffId) {
+                          setStep(3);
+                        } else {
+                          setStep(2);
+                        }
                       }}
                       className={`flex items-center justify-between p-6 rounded-[24px] border transition-all text-left group ${
                         bookingData.serviceId === s.id 
@@ -395,13 +418,20 @@ export default function PublicBookingPage({ params }: { params: Promise<{ ownerI
             {step === 3 && (
               <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="icon" onClick={() => setStep(2)} className={isBeauty ? 'hover:bg-pink-100' : ''}>
+                  <Button variant="ghost" size="icon" onClick={() => preSelectedStaffId ? setStep(1) : setStep(2)} className={isBeauty ? 'hover:bg-pink-100' : ''}>
                     <ArrowLeft size={18} />
                   </Button>
-                  <h2 className={`text-xl ${theme.fontDisplay} flex items-center gap-2`}>
-                    <CalendarIcon size={20} className={isBeauty ? 'text-pink-500' : 'text-zinc-500'} />
-                    Quando deseja vir?
-                  </h2>
+                  <div className="flex flex-col">
+                    <h2 className={`text-xl ${theme.fontDisplay} flex items-center gap-2`}>
+                      <CalendarIcon size={20} className={isBeauty ? 'text-pink-500' : 'text-zinc-500'} />
+                      Quando deseja vir?
+                    </h2>
+                    {bookingData.staffName && (
+                      <p className="text-[10px] text-zinc-500 ml-7 flex items-center gap-1">
+                        <UserCheck size={10} /> Agenda de {bookingData.staffName}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-4">

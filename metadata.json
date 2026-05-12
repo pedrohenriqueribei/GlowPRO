@@ -1,6 +1,6 @@
 {
   "name": "GlowPRO",
-  "description": "Plataforma profissional de gerenciamento para salões de beleza e barbearias, com controle de clientes, serviços e agendamentos.",
+  "description": "Plataforma Master de gestão para redes de salões e barbearias, permitindo controle global de estabelecimentos, profissionais e agendamentos.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["Gestão de Clientes", "Agendamentos em Tempo Real", "Controle de Serviços", "Dashboard Analítico"]
+  "majorCapabilities": ["Gestão Global de Estabelecimentos", "Gestão de Equipes", "Agendamentos Master", "Painel Administrativo Completo"]
 }

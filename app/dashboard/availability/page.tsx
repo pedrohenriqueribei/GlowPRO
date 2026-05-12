@@ -50,6 +50,9 @@ export default function AvailabilityPage() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setRules(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
+    }, (error) => {
+      console.error('Error in availability snapshot:', error);
+      setLoading(false);
     });
 
     return () => unsubscribe();

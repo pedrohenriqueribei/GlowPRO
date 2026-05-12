@@ -34,6 +34,8 @@ export default function ClientsPage() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('Error in clients snapshot:', error);
     });
 
     return () => unsubscribe();
